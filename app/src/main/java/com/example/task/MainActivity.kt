@@ -9,13 +9,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.example.task.ui.theme.TaskTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlin.system.measureTimeMillis
 
 
 class MainActivity : ComponentActivity() {
@@ -23,37 +26,124 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val symbolQueueManager = SymbolQueueManager2()
 
-        lifecycleScope.launch{
+        lifecycleScope.launch {
             symbolQueueManager.subscribe(
                 listOf(
                     "bist100",
                     "bist30",
                     "usdtry",
-                    "selam",
-                    "naber"
+                    "eurtry",
+                    "garan"
                 )
             )
         }
-        lifecycleScope.launch{
-            symbolQueueManager.subscribe(listOf("merhaba"))
+        lifecycleScope.launch {
+            delay(2000)
+            symbolQueueManager.unsubscribe(
+                listOf(
+                    "bist100",
+                    "bist30",
+                    "usdtry",
+                    "eurtry",
+                    "garan"
+                )
+            )
         }
-        lifecycleScope.launch{
-            symbolQueueManager.unsubscribe(listOf("bist100"))
+        lifecycleScope.launch {
+            delay(3000)
+            symbolQueueManager.subscribe(listOf("garan"))
         }
-        lifecycleScope.launch{
-            symbolQueueManager.subscribe(listOf("hello"))
+        lifecycleScope.launch {
+            delay(4000)
+            symbolQueueManager.unsubscribe(listOf("garan"))
         }
-        lifecycleScope.launch{
-            symbolQueueManager.unsubscribe(listOf("merhaba"))
+        lifecycleScope.launch {
+            delay(5000)
+            symbolQueueManager.subscribe(
+                listOf(
+                    "bist100",
+                    "bist30",
+                    "usdtry",
+                    "eurtry",
+                    "garan"
+                )
+            )
         }
-        lifecycleScope.launch{
-            symbolQueueManager.subscribe(listOf("merhaba"))
+        lifecycleScope.launch {
+            delay(8000)
+            /*symbolQueueManager.unsubscribe(
+                listOf(
+                    "bist100",
+                    "bist30",
+                    "usdtry",
+                    "eurtry",
+                    "garan"
+                )
+            )*/
         }
-        lifecycleScope.launch{
-            symbolQueueManager.subscribe(listOf("merhaba"))
+        lifecycleScope.launch {
+            delay(8500)
+            symbolQueueManager.subscribe(
+                listOf(
+                    "akbnk",
+                    "aefes",
+                    "isctr",
+                    "eregl",
+                    "thyao",
+                    "f_akbnk1023",
+                    "f_akbnk1123",
+                    "tabgd",
+                    "bist100",
+                )
+            )
         }
-        lifecycleScope.launch{
-            symbolQueueManager.unsubscribe(listOf("hello"))
+        lifecycleScope.launch {
+            delay(9500)
+            /*symbolQueueManager.unsubscribe(
+                listOf(
+                    "akbnk",
+                    "aefes",
+                    "isctr",
+                    "eregl",
+                    "thyao",
+                    "f_akbnk1023",
+                    "f_akbnk1123",
+                    "tabgd",
+                    "bist100",
+                )
+            )*/
+        }
+        lifecycleScope.launch {
+            delay(9800)
+            symbolQueueManager.subscribe(
+                listOf(
+                    "akbnk",
+                )
+            )
+        }
+        lifecycleScope.launch {
+            delay(11111)
+            symbolQueueManager.unsubscribe(
+                listOf(
+                    "akbnk",
+                )
+            )
+        }
+        lifecycleScope.launch {
+            delay(12000)
+            symbolQueueManager.subscribe(
+                listOf(
+                    "akbnk",
+                    "aefes",
+                    "isctr",
+                    "eregl",
+                    "thyao",
+                    "f_akbnk1023",
+                    "f_akbnk1123",
+                    "tabgd",
+                    "bist100",
+                )
+            )
         }
 
         setContent {
@@ -63,17 +153,17 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colors.background
                 ) {
                     var symbolQueue by remember { mutableStateOf(emptyMap<String, Int>()) }
-                    var unsubscribeQueue by remember { mutableStateOf(emptyList<String>()) }
+                    var unsubscribeQueue by remember { mutableStateOf(emptyMap<String, Int>()) }
 
                     LaunchedEffect(Unit) {
-                        lifecycleScope.launch {
+                        launch {
                             val symbolQueueFlow = symbolQueueManager.getSymbolQueue()
                             symbolQueueFlow.collect { updatedQueue ->
                                 symbolQueue = updatedQueue
                             }
                         }
 
-                        lifecycleScope.launch {
+                        launch {
                             val unsubscribeQueueFlow = symbolQueueManager.getUnsubscribeQueue()
                             unsubscribeQueueFlow.collect { updatedUnsubscribeQueue ->
                                 unsubscribeQueue = updatedUnsubscribeQueue
@@ -91,7 +181,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
     }
 }
 

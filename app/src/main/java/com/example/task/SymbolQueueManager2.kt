@@ -1,99 +1,82 @@
-
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 class SymbolQueueManager2 {
     private val symbolCountMap = mutableMapOf<String, Int>()
     private val symbolQueue = MutableStateFlow<Map<String, Int>>(emptyMap())
-    private val unsubscribeQueue = MutableStateFlow<List<String>>(emptyList())
-    private val coroutineScope = CoroutineScope(Dispatchers.Default)
-    val unsubscribeScope = CoroutineScope(Dispatchers.Default)
-    val subscribeScope = CoroutineScope(Dispatchers.Default)
-    private val mutex = Mutex()
+    private val unsubscribeQueue = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val scope = CoroutineScope(Dispatchers.Default)
 
     init {
-        symbolQueue.update {
-            it + symbolCountMap.toMap()
+        scope.launch {
+            symbolQueue.update {
+                it.toMutableMap().apply {
+                    putAll(symbolCountMap.toMap())
+                }
+            }
         }
-        startProcessingQueue()
+        scope.launch {
+            startProcessingQueue()
+        }
+        scope.launch {
+            symbolQueue.collect {
+                println("symbolQueue: $it")
+            }
+        }
+        scope.launch {
+            unsubscribeQueue.collect {
+                println("unsubscribeQueue: $it")
+            }
+        }
     }
 
     fun subscribe(symbols: List<String>) {
-        subscribeScope.launch {
-            symbols.forEach { symbol ->
-                symbolCountMap[symbol] = symbolCountMap.getOrDefault(symbol, 0) + 1
+        scope.launch {
+            symbolQueue.update {
+                it.toMutableMap().apply {
+                    symbols.forEach { symbol ->
+                        put(symbol, getOrDefault(symbol, 0) + 1)
+                    }
+                }
             }
-            updateQueue()
         }
     }
 
     fun unsubscribe(symbols: List<String>) {
-        val debounceStartTime = System.currentTimeMillis()
-        unsubscribeScope.launch {
-            unsubscribeQueue.value = unsubscribeQueue.value + symbols
-            symbolQueue.sample(5000).collect {
-                val removedSymbols = mutableListOf<String>()
-                symbols.forEach { symbol ->
-                    val count = symbolCountMap[symbol]
-                    if (count != null) {
-                        if (count > 1) {
-                            symbolCountMap[symbol] = count - 1
-                        } else {
-                            symbolCountMap.remove(symbol)
-                            removedSymbols.add(symbol)
-                        }
+        scope.launch {
+            unsubscribeQueue.update {
+                it.toMutableMap().apply {
+                    symbols.forEach { symbol ->
+                        put(symbol, getOrDefault(symbol, 0) + 1)
                     }
                 }
-
-                unsubscribeQueue.value = unsubscribeQueue.value - removedSymbols
-                //unsubscribeQueue.value = emptyList()
-                updateQueue()
             }
-
-
-            symbolQueue.debounce(5000).collect {
-                val removedSymbols = mutableListOf<String>()
-                symbols.forEach { symbol ->
-                    val count = symbolCountMap[symbol]
-                    if (count != null) {
-                        if (count > 1) {
-                            symbolCountMap[symbol] = count - 1
-                        } else {
-                            symbolCountMap.remove(symbol)
-                            removedSymbols.add(symbol)
-                        }
-                    }
-                }
-
-                unsubscribeQueue.value = unsubscribeQueue.value - removedSymbols
-                //unsubscribeQueue.value = emptyList()
-                updateQueue()
-            }
-
-
         }
-        val debounceEndTime = System.currentTimeMillis()
-        val debounceDuration = debounceEndTime - debounceStartTime
-        println("Debounce time: $debounceDuration ms")
-
     }
 
-    fun getSymbolQueue(): StateFlow<Map<String, Int>> = symbolQueue.asStateFlow()
+    fun getSymbolQueue() = symbolQueue.asStateFlow()
 
-    fun getUnsubscribeQueue(): StateFlow<List<String>> = unsubscribeQueue.asStateFlow()
+    fun getUnsubscribeQueue() = unsubscribeQueue.asStateFlow()
 
-    private suspend fun updateQueue() {
-        symbolQueue.value = symbolCountMap.toMap()
-    }
-
-    private fun startProcessingQueue() {
-        coroutineScope.launch {
-            symbolQueue
-                .collect { updatedQueue ->
-                    println("Queue updated: $updatedQueue")
+    @OptIn(FlowPreview::class)
+    private suspend fun startProcessingQueue() {
+        unsubscribeQueue.debounce(5000).collect { unsubMap ->
+            println("debounce")
+            symbolQueue.update { symbolsMap ->
+                symbolsMap.toMutableMap().apply {
+                    unsubMap.forEach { (key, value) ->
+                        get(key)?.let { existCount ->
+                            val nextValue = existCount - value
+                            if (nextValue > 0) {
+                                put(key, nextValue)
+                            } else {
+                                remove(key)
+                            }
+                        }
+                        unsubscribeQueue.update { emptyMap() }
+                    }
                 }
+            }
         }
     }
 }
